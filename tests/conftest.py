@@ -2,6 +2,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+from fpdf import FPDF
 
 from kuberag.config import Settings
 
@@ -22,3 +23,16 @@ def test_settings(tmp_data_dir: Path) -> Settings:
         bm25_path=tmp_data_dir / "bm25.pkl",
         raw_docs_path=tmp_data_dir / "raw",
     )
+
+
+@pytest.fixture
+def pdf_fixture(tmp_path: Path) -> Path:
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Helvetica", size=14)
+    pdf.cell(0, 10, "Hello PDF World")
+    pdf.add_page()
+    pdf.cell(0, 10, "This is page two.")
+    out = tmp_path / "sample.pdf"
+    pdf.output(str(out))
+    return out
