@@ -1,0 +1,46 @@
+# Environments
+.env
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Project data (gitignored, but keep dir structure)
+data/*
+!data/.gitkeep
+eval/results/*
+!eval/results/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build / dist
+dist/
+build/
+*.egg
+
+# Working notes — local-only, not for the public repo
+SPEC.md
+PLAN.md
+TASKS.md
+Context.md
+
