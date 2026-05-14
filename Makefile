@@ -13,10 +13,13 @@ type:
 	uv run mypy src/
 
 test:
-	uv run pytest
+	uv run pytest -m "not eval and not network"
+
+test-network:
+	uv run pytest -m network
 
 cov:
-	uv run pytest --cov=src/kuberag --cov-report=term-missing
+	uv run pytest -m "not eval and not network" --cov=src/kuberag --cov-report=term-missing
 
 check: lint type test
 

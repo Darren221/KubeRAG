@@ -88,5 +88,6 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 markers = [
     "integration: tests that touch the filesystem or local services",
+    "network: tests that hit the public internet (slow; opt in with -m network)",
     "eval: tests that hit live LLM APIs (run manually, not in CI)",
 ]
