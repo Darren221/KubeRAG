@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from kuberag.ingest.chunkers import Chunk
-from kuberag.stores.chroma_store import ChromaStore, Hit
+from kuberag.stores import ChromaStore, Hit
 
 pytestmark = pytest.mark.integration
 

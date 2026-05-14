@@ -1,25 +1,10 @@
 from pathlib import Path
-from typing import Any
 
 import chromadb
 import numpy as np
-from pydantic import BaseModel, ConfigDict, Field
 
 from kuberag.ingest.chunkers import Chunk
-
-
-class Hit(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    chunk_id: str
-    text: str
-    source: str
-    score: float
-    rank: int
-    section: str | None = None
-    chunking_strategy: str = ""
-    metadata: dict[str, Any] = Field(default_factory=dict)
-
+from kuberag.stores.models import Hit
 
 _DEFAULT_COLLECTION = "kuberag"
 
