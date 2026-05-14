@@ -84,3 +84,12 @@ class ChromaStore:
 
     def count(self) -> int:
         return self._collection.count()
+
+    def all_embeddings(self) -> list[list[float]]:
+        if self.count() == 0:
+            return []
+        result = self._collection.get(include=["embeddings"])
+        embeddings = result.get("embeddings")
+        if embeddings is None:
+            return []
+        return [list(map(float, vec)) for vec in embeddings]

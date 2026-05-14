@@ -1,0 +1,4 @@
+Quick notes about cluster operations.
+Run kubectl get pods to list pods in the current namespace.
+Run kubectl describe pod NAME for details about a specific pod.
+Use kubectl logs to fetch container logs.
