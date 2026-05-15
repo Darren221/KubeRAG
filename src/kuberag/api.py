@@ -1,8 +1,10 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Annotated
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from openai import AsyncOpenAI
+from pydantic import BaseModel
 from starlette.requests import Request
 
 from kuberag import __version__
@@ -80,6 +82,19 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
 
 
+class ModelInfo(BaseModel):
+    embedding: str
+    generation: str
+    judge: str
+
+
+class HealthResponse(BaseModel):
+    status: str
+    chroma_count: int
+    bm25_count: int
+    models: ModelInfo
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     if settings is None:
         settings = Settings()  # type: ignore[call-arg]
@@ -90,7 +105,32 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=_lifespan,
     )
     app.state.settings = settings
+    _register_routes(app)
     return app
+
+
+def _register_routes(app: FastAPI) -> None:
+    @app.get(
+        "/v1/health",
+        response_model=HealthResponse,
+        tags=["health"],
+        summary="Service readiness and index counts",
+    )
+    async def health(
+        chroma: Annotated[ChromaStore, Depends(get_chroma_store)],
+        bm25: Annotated[BM25Store, Depends(get_bm25_store)],
+        settings: Annotated[Settings, Depends(get_settings)],
+    ) -> HealthResponse:
+        return HealthResponse(
+            status="ok",
+            chroma_count=chroma.count(),
+            bm25_count=bm25.count(),
+            models=ModelInfo(
+                embedding=settings.embedding_model,
+                generation=settings.generation_model,
+                judge=settings.judge_model,
+            ),
+        )
 
 
 def get_settings(request: Request) -> Settings:
