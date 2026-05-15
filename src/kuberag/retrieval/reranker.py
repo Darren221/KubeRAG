@@ -38,9 +38,18 @@ class Reranker:
         self.model = model
         self.top_n = top_n
 
-    async def rerank(self, query: str, candidates: list[FusedHit]) -> list[FusedHit]:
+    async def rerank(
+        self,
+        query: str,
+        candidates: list[FusedHit],
+        *,
+        top_n: int | None = None,
+    ) -> list[FusedHit]:
         if not candidates:
             return []
+        effective_top_n = top_n if top_n is not None else self.top_n
+        if effective_top_n <= 0:
+            raise ValueError("top_n must be positive")
 
         user_prompt = self._build_user_prompt(query, candidates)
         response = await self.client.beta.chat.completions.parse(
@@ -65,7 +74,7 @@ class Reranker:
             seen.add(entry.index)
             valid_indexes.append(entry.index)
 
-        top = valid_indexes[: self.top_n]
+        top = valid_indexes[:effective_top_n]
         return [
             candidates[idx].model_copy(update={"rank": new_rank})
             for new_rank, idx in enumerate(top)
