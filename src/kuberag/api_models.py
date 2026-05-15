@@ -1,3 +1,6 @@
+from pathlib import Path
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -20,4 +23,13 @@ class AskRequest(BaseModel):
         ge=1,
         le=50,
         description="Final reranked top-N returned to the generator.",
+    )
+
+
+class IngestRequest(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    path: Path = Field(description="File or directory to ingest (server-local path).")
+    chunker: Literal["fixed", "recursive"] = Field(
+        default="fixed", description="Chunking strategy to use."
     )

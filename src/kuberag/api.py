@@ -2,13 +2,13 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Annotated
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from openai import AsyncOpenAI
 from pydantic import BaseModel
 from starlette.requests import Request
 
 from kuberag import __version__
-from kuberag.api_models import AskRequest
+from kuberag.api_models import AskRequest, IngestRequest
 from kuberag.config import Settings
 from kuberag.generation.citations import CitationVerifier
 from kuberag.generation.generator import Generator
@@ -18,8 +18,9 @@ from kuberag.generation.orchestrator import (
     GenerationOrchestrator,
 )
 from kuberag.ingest.chunkers import Chunker, FixedSizeChunker, RecursiveChunker
+from kuberag.ingest.cli import find_supported_files
 from kuberag.ingest.embedder import Embedder, EmbeddingCache
-from kuberag.ingest.pipeline import IngestPipeline
+from kuberag.ingest.pipeline import IngestPipeline, IngestResult
 from kuberag.retrieval.dense import DenseRetriever
 from kuberag.retrieval.hybrid import HybridSearch
 from kuberag.retrieval.reranker import Reranker
@@ -166,6 +167,21 @@ def _register_routes(app: FastAPI) -> None:
         chroma: Annotated[ChromaStore, Depends(get_chroma_store)],
     ) -> list[DocumentSummary]:
         return chroma.list_documents()
+
+    @app.post(
+        "/v1/ingest",
+        tags=["ingestion"],
+        summary="Ingest documents from a server-local path",
+    )
+    async def ingest(
+        payload: IngestRequest,
+        pipeline: Annotated[IngestPipeline, Depends(get_ingest_pipeline)],
+    ) -> IngestResult:
+        try:
+            paths = find_supported_files(payload.path)
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
+        return await pipeline.run(paths, chunker_name=payload.chunker)
 
 
 def get_settings(request: Request) -> Settings:

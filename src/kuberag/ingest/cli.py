@@ -16,6 +16,17 @@ from kuberag.stores import BM25Store, ChromaStore
 _SUPPORTED_EXTENSIONS = (".md", ".markdown", ".html", ".htm", ".txt", ".pdf")
 
 
+def find_supported_files(target: Path) -> list[Path]:
+    if not target.exists():
+        raise FileNotFoundError(target)
+    if target.is_file():
+        return [target]
+    paths: list[Path] = []
+    for ext in _SUPPORTED_EXTENSIONS:
+        paths.extend(target.rglob(f"*{ext}"))
+    return sorted(paths)
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="kuberag.ingest",
@@ -50,16 +61,7 @@ def resolve_paths(args: argparse.Namespace, settings: Settings) -> list[Path]:
     if args.source == "k8s":
         source = K8sDocsSource(commit=args.commit)
         return source.fetch(settings.raw_docs_path)
-
-    target = Path(args.path)
-    if not target.exists():
-        raise FileNotFoundError(target)
-    if target.is_file():
-        return [target]
-    paths: list[Path] = []
-    for ext in _SUPPORTED_EXTENSIONS:
-        paths.extend(target.rglob(f"*{ext}"))
-    return sorted(paths)
+    return find_supported_files(Path(args.path))
 
 
 def build_pipeline(settings: Settings) -> IngestPipeline:
