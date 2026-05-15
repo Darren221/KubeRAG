@@ -35,7 +35,7 @@ class ConfidenceBreakdown(BaseModel):
     composite: float = Field(ge=0.0, le=1.0)
 
 
-def _retrieval_confidence(hits: list[FusedHit]) -> float:
+def retrieval_confidence(hits: list[FusedHit]) -> float:
     if not hits:
         return 0.0
     top = hits[:_TOP_K_FOR_RETRIEVAL_SCORE]
@@ -43,7 +43,7 @@ def _retrieval_confidence(hits: list[FusedHit]) -> float:
     return min(1.0, max(0.0, avg * _RRF_NORMALIZER))
 
 
-def _citation_confidence(verifications: list[VerifiedCitation]) -> float:
+def citation_confidence(verifications: list[VerifiedCitation]) -> float:
     if not verifications:
         return 0.0
     supported = sum(1 for v in verifications if v.supported)
@@ -61,8 +61,8 @@ def score_confidence(
         raise ValueError("completeness_score must be in [0, 1]")
 
     w = weights or ConfidenceWeights()
-    retrieval = _retrieval_confidence(retrieval_hits)
-    citation = _citation_confidence(verifications)
+    retrieval = retrieval_confidence(retrieval_hits)
+    citation = citation_confidence(verifications)
     composite = (
         w.retrieval * retrieval
         + w.citation * citation
