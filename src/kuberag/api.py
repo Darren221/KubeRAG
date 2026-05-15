@@ -8,10 +8,15 @@ from pydantic import BaseModel
 from starlette.requests import Request
 
 from kuberag import __version__
+from kuberag.api_models import AskRequest
 from kuberag.config import Settings
 from kuberag.generation.citations import CitationVerifier
 from kuberag.generation.generator import Generator
-from kuberag.generation.orchestrator import CompletenessJudge, GenerationOrchestrator
+from kuberag.generation.orchestrator import (
+    AnswerResult,
+    CompletenessJudge,
+    GenerationOrchestrator,
+)
 from kuberag.ingest.chunkers import Chunker, FixedSizeChunker, RecursiveChunker
 from kuberag.ingest.embedder import Embedder, EmbeddingCache
 from kuberag.ingest.pipeline import IngestPipeline
@@ -131,6 +136,26 @@ def _register_routes(app: FastAPI) -> None:
                 judge=settings.judge_model,
             ),
         )
+
+    @app.post(
+        "/v1/ask",
+        tags=["retrieval"],
+        summary="Answer a question over the indexed corpus",
+    )
+    async def ask(
+        payload: AskRequest,
+        hybrid: Annotated[HybridSearch, Depends(get_hybrid_search)],
+        orchestrator: Annotated[
+            GenerationOrchestrator, Depends(get_orchestrator)
+        ],
+    ) -> AnswerResult:
+        chunks = await hybrid.search(
+            payload.question,
+            k=payload.k,
+            top_n=payload.top_n,
+            dense_only=payload.dense_only,
+        )
+        return await orchestrator.answer(payload.question, chunks)
 
 
 def get_settings(request: Request) -> Settings:
