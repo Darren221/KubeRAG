@@ -49,7 +49,7 @@ packages = ["src/kuberag"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-src = ["src", "tests"]
+src = ["src", "tests", "dashboard"]
 
 [tool.ruff.lint]
 select = [
