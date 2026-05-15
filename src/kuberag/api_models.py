@@ -5,7 +5,19 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class AskRequest(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(
+        frozen=True,
+        json_schema_extra={
+            "examples": [
+                {
+                    "question": "How does a readiness probe affect Service endpoints?",
+                    "dense_only": False,
+                    "k": 10,
+                    "top_n": 5,
+                }
+            ]
+        },
+    )
 
     question: str = Field(min_length=1, description="The question to answer.")
     dense_only: bool = Field(
@@ -27,7 +39,14 @@ class AskRequest(BaseModel):
 
 
 class IngestRequest(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(
+        frozen=True,
+        json_schema_extra={
+            "examples": [
+                {"path": "/data/raw/kubernetes-website", "chunker": "fixed"}
+            ]
+        },
+    )
 
     path: Path = Field(description="File or directory to ingest (server-local path).")
     chunker: Literal["fixed", "recursive"] = Field(

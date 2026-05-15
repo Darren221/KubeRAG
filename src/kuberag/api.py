@@ -107,7 +107,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(
         title="KubeRAG",
         version=__version__,
-        description="Hybrid-search RAG over Kubernetes documentation.",
+        description=(
+            "Hybrid-search Retrieval-Augmented Generation over Kubernetes "
+            "documentation. Dense (ChromaDB) and sparse (BM25) retrieval are "
+            "fused via Reciprocal Rank Fusion, reranked by an LLM-as-judge, "
+            "and answered with cited grounding plus per-citation verification."
+        ),
+        openapi_tags=[
+            {"name": "retrieval", "description": "Ask questions and inspect the index."},
+            {"name": "ingestion", "description": "Add documents to the index."},
+            {"name": "health", "description": "Service liveness and configuration."},
+        ],
         lifespan=_lifespan,
     )
     app.state.settings = settings
@@ -121,6 +131,13 @@ def _register_routes(app: FastAPI) -> None:
         response_model=HealthResponse,
         tags=["health"],
         summary="Service readiness and index counts",
+        operation_id="health",
+        description=(
+            "Returns 200 if the service is ready to serve traffic. Reports "
+            "the number of chunks in each index and the pinned model IDs. "
+            "Useful as a Kubernetes readiness probe and for operational "
+            "sanity checks after ingest."
+        ),
     )
     async def health(
         chroma: Annotated[ChromaStore, Depends(get_chroma_store)],
@@ -142,6 +159,14 @@ def _register_routes(app: FastAPI) -> None:
         "/v1/ask",
         tags=["retrieval"],
         summary="Answer a question over the indexed corpus",
+        operation_id="ask",
+        description=(
+            "Hybrid retrieval (dense + sparse + RRF + LLM reranker) followed by "
+            "grounded generation with per-citation verification. Returns either a "
+            "GroundedAnswer with text, verified citations, and a confidence "
+            "breakdown, or an InsufficientAnswer when the system cannot confidently "
+            "answer. Use the `kind` field to discriminate."
+        ),
     )
     async def ask(
         payload: AskRequest,
@@ -162,6 +187,13 @@ def _register_routes(app: FastAPI) -> None:
         "/v1/documents",
         tags=["retrieval"],
         summary="List indexed source files and their chunk counts",
+        operation_id="list_documents",
+        description=(
+            "Returns one entry per (source, chunking_strategy) pair currently in "
+            "the index. Useful for sanity-checking ingest runs and for displaying "
+            "an inventory in the dashboard. The same source may appear twice if "
+            "it was ingested under both `fixed` and `recursive` chunking."
+        ),
     )
     async def list_documents(
         chroma: Annotated[ChromaStore, Depends(get_chroma_store)],
@@ -172,6 +204,17 @@ def _register_routes(app: FastAPI) -> None:
         "/v1/ingest",
         tags=["ingestion"],
         summary="Ingest documents from a server-local path",
+        operation_id="ingest",
+        description=(
+            "Walks the given path for supported documents (.md, .html, .txt, "
+            ".pdf), chunks them, embeds, dedupes against existing content, and "
+            "writes to both the dense and sparse indexes. Re-running with the "
+            "same input is idempotent. Returns counts plus a list of any chunks "
+            "skipped as near-duplicates."
+        ),
+        responses={
+            404: {"description": "The supplied path does not exist on the server."},
+        },
     )
     async def ingest(
         payload: IngestRequest,
