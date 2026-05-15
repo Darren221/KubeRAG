@@ -49,6 +49,15 @@ def linkify_citations(text: str) -> str:
     )
 
 
+def format_chunk_provenance(chunk: FusedHit) -> str:
+    parts = [f"rank {chunk.rank}", f"rrf {chunk.rrf_score:.4f}"]
+    if chunk.dense_rank is not None:
+        parts.append(f"dense #{chunk.dense_rank}")
+    if chunk.sparse_rank is not None:
+        parts.append(f"sparse #{chunk.sparse_rank}")
+    return " · ".join(parts)
+
+
 def render_styles() -> None:
     st.markdown(CITATION_CSS, unsafe_allow_html=True)
 
@@ -96,4 +105,5 @@ def render_chunks_panel(
             flag = "✓ supported" if cite.supported else "✗ unsupported"
             header += f' <span class="{cls}">{flag}</span>'
         st.markdown(header, unsafe_allow_html=True)
+        st.caption(format_chunk_provenance(chunk))
         st.markdown(f"> {chunk.text}")

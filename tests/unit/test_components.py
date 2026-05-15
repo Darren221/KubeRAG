@@ -1,4 +1,26 @@
-from dashboard.components import linkify_citations
+from dashboard.components import format_chunk_provenance, linkify_citations
+
+from kuberag.retrieval.fusion import FusedHit
+
+
+def _make_hit(
+    *,
+    rank: int = 0,
+    rrf_score: float = 0.0164,
+    dense_rank: int | None = 0,
+    sparse_rank: int | None = 0,
+) -> FusedHit:
+    return FusedHit(
+        chunk_id="c",
+        text="text",
+        source="/test/c.md",
+        section=None,
+        chunking_strategy="fixed",
+        rrf_score=rrf_score,
+        rank=rank,
+        dense_rank=dense_rank,
+        sparse_rank=sparse_rank,
+    )
 
 
 def test_no_markers_returns_unchanged() -> None:
@@ -45,3 +67,32 @@ def test_output_uses_css_class() -> None:
     # So we can style citation badges
     out = linkify_citations("Cite [1].")
     assert "kr-citation" in out
+
+
+def test_provenance_includes_rank_and_rrf_score() -> None:
+    line = format_chunk_provenance(_make_hit(rank=2, rrf_score=0.0123))
+    assert "rank 2" in line
+    assert "0.0123" in line
+
+
+def test_provenance_includes_both_source_ranks_when_present() -> None:
+    line = format_chunk_provenance(_make_hit(dense_rank=1, sparse_rank=3))
+    assert "dense #1" in line
+    assert "sparse #3" in line
+
+
+def test_provenance_omits_sparse_when_dense_only() -> None:
+    line = format_chunk_provenance(_make_hit(dense_rank=0, sparse_rank=None))
+    assert "dense #0" in line
+    assert "sparse" not in line
+
+
+def test_provenance_omits_dense_when_sparse_only() -> None:
+    line = format_chunk_provenance(_make_hit(dense_rank=None, sparse_rank=4))
+    assert "sparse #4" in line
+    assert "dense" not in line
+
+
+def test_provenance_uses_dot_separator() -> None:
+    line = format_chunk_provenance(_make_hit())
+    assert " · " in line
