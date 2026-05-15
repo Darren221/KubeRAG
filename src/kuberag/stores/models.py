@@ -14,3 +14,11 @@ class Hit(BaseModel):
     section: str | None = None
     chunking_strategy: str = ""
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class DocumentSummary(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    source: str
+    chunking_strategy: str
+    chunk_count: int = Field(ge=0)

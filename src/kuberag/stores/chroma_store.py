@@ -4,7 +4,7 @@ import chromadb
 import numpy as np
 
 from kuberag.ingest.chunkers import Chunk
-from kuberag.stores.models import Hit
+from kuberag.stores.models import DocumentSummary, Hit
 
 _DEFAULT_COLLECTION = "kuberag"
 
@@ -93,3 +93,24 @@ class ChromaStore:
         if embeddings is None:
             return []
         return [list(map(float, vec)) for vec in embeddings]
+
+    def list_documents(self) -> list[DocumentSummary]:
+        if self.count() == 0:
+            return []
+        result = self._collection.get(include=["metadatas"])
+        metadatas = result.get("metadatas") or []
+
+        counts: dict[tuple[str, str], int] = {}
+        for meta in metadatas:
+            if not meta:
+                continue
+            source = str(meta.get("source", ""))
+            strategy = str(meta.get("chunking_strategy", ""))
+            counts[(source, strategy)] = counts.get((source, strategy), 0) + 1
+
+        return [
+            DocumentSummary(
+                source=source, chunking_strategy=strategy, chunk_count=count
+            )
+            for (source, strategy), count in sorted(counts.items())
+        ]

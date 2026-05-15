@@ -1,5 +1,5 @@
 from kuberag.stores.bm25_store import BM25Store
 from kuberag.stores.chroma_store import ChromaStore
-from kuberag.stores.models import Hit
+from kuberag.stores.models import DocumentSummary, Hit
 
-__all__ = ["BM25Store", "ChromaStore", "Hit"]
+__all__ = ["BM25Store", "ChromaStore", "DocumentSummary", "Hit"]

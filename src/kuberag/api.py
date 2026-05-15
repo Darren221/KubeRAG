@@ -24,7 +24,7 @@ from kuberag.retrieval.dense import DenseRetriever
 from kuberag.retrieval.hybrid import HybridSearch
 from kuberag.retrieval.reranker import Reranker
 from kuberag.retrieval.sparse import SparseRetriever
-from kuberag.stores import BM25Store, ChromaStore
+from kuberag.stores import BM25Store, ChromaStore, DocumentSummary
 
 
 @asynccontextmanager
@@ -156,6 +156,16 @@ def _register_routes(app: FastAPI) -> None:
             dense_only=payload.dense_only,
         )
         return await orchestrator.answer(payload.question, chunks)
+
+    @app.get(
+        "/v1/documents",
+        tags=["retrieval"],
+        summary="List indexed source files and their chunk counts",
+    )
+    async def list_documents(
+        chroma: Annotated[ChromaStore, Depends(get_chroma_store)],
+    ) -> list[DocumentSummary]:
+        return chroma.list_documents()
 
 
 def get_settings(request: Request) -> Settings:
