@@ -4,9 +4,16 @@ import httpx
 import streamlit as st
 
 from dashboard.api_client import KubeRAGClient
+from dashboard.components import (
+    render_chunks_panel,
+    render_grounded_answer,
+    render_insufficient_answer,
+    render_styles,
+)
 from kuberag.generation.orchestrator import GroundedAnswer, InsufficientAnswer
 
 st.set_page_config(page_title="KubeRAG", page_icon=":mag:", layout="wide")
+render_styles()
 st.title("KubeRAG")
 st.caption(
     "Hybrid-search RAG over Kubernetes documentation. "
@@ -55,15 +62,11 @@ if "last_answer" in st.session_state:
     answer = st.session_state.last_answer
     st.divider()
     if isinstance(answer, GroundedAnswer):
-        st.markdown("### Answer")
-        st.markdown(answer.text)
-        st.json(answer.model_dump(mode="json"))
+        render_grounded_answer(answer)
+        st.divider()
+        render_chunks_panel(answer.retrieved_chunks, citations=answer.citations)
     elif isinstance(answer, InsufficientAnswer):
-        st.warning(f"Insufficient context: {answer.reason}")
-        if answer.suggested_documents:
-            st.markdown("**Suggested documents to check:**")
-            for doc in answer.suggested_documents:
-                st.markdown(f"- `{doc}`")
-        if answer.generated_text:
-            with st.expander("What the model wrote (rejected by confidence check)"):
-                st.markdown(answer.generated_text)
+        render_insufficient_answer(answer)
+        if answer.retrieved_chunks:
+            st.divider()
+            render_chunks_panel(answer.retrieved_chunks)
