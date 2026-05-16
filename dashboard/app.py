@@ -34,10 +34,16 @@ client = _get_client()
 
 with st.sidebar:
     st.subheader("Settings")
+    compare_mode = st.toggle(
+        "Side-by-side comparison",
+        value=False,
+        help="Run both hybrid and dense-only and render them in two columns.",
+    )
     dense_only = st.toggle(
         "Dense-only retrieval",
         value=False,
-        help="Skip sparse (BM25) retrieval and RRF. Useful for A/B-comparing hybrid vs. dense.",
+        disabled=compare_mode,
+        help="Skip sparse (BM25) retrieval and RRF. Disabled in comparison mode.",
     )
     k = st.slider("k (per-retriever candidates)", min_value=3, max_value=30, value=10)
     top_n = st.slider("top_n (final results)", min_value=1, max_value=10, value=5)
@@ -47,26 +53,61 @@ question = st.text_input(
     placeholder="How does a readiness probe affect Service endpoints?",
 )
 
+
+def _render_answer_block(
+    answer: GroundedAnswer | InsufficientAnswer, *, anchor_prefix: str = "chunk-"
+) -> None:
+    if isinstance(answer, GroundedAnswer):
+        render_grounded_answer(answer, anchor_prefix=anchor_prefix)
+        st.divider()
+        render_chunks_panel(
+            answer.retrieved_chunks,
+            citations=answer.citations,
+            anchor_prefix=anchor_prefix,
+        )
+    else:
+        render_insufficient_answer(answer)
+        if answer.retrieved_chunks:
+            st.divider()
+            render_chunks_panel(
+                answer.retrieved_chunks, anchor_prefix=anchor_prefix
+            )
+
+
 if st.button("Ask", type="primary", disabled=not question.strip()):
     with st.spinner("Searching and answering..."):
         try:
-            answer = client.ask(
-                question, dense_only=dense_only, k=k, top_n=top_n
-            )
-            st.session_state.last_answer = answer
+            if compare_mode:
+                st.session_state.last_hybrid = client.ask(
+                    question, dense_only=False, k=k, top_n=top_n
+                )
+                st.session_state.last_dense = client.ask(
+                    question, dense_only=True, k=k, top_n=top_n
+                )
+                st.session_state.last_mode = "compare"
+            else:
+                st.session_state.last_answer = client.ask(
+                    question, dense_only=dense_only, k=k, top_n=top_n
+                )
+                st.session_state.last_mode = "single"
             st.session_state.last_question = question
         except httpx.HTTPError as exc:
             st.error(f"Request failed: {exc}")
 
-if "last_answer" in st.session_state:
-    answer = st.session_state.last_answer
+
+if st.session_state.get("last_mode") == "compare":
     st.divider()
-    if isinstance(answer, GroundedAnswer):
-        render_grounded_answer(answer)
-        st.divider()
-        render_chunks_panel(answer.retrieved_chunks, citations=answer.citations)
-    elif isinstance(answer, InsufficientAnswer):
-        render_insufficient_answer(answer)
-        if answer.retrieved_chunks:
-            st.divider()
-            render_chunks_panel(answer.retrieved_chunks)
+    col_left, col_right = st.columns(2)
+    with col_left:
+        st.markdown("## Hybrid (dense + sparse + RRF)")
+        _render_answer_block(
+            st.session_state.last_hybrid, anchor_prefix="hybrid-chunk-"
+        )
+    with col_right:
+        st.markdown("## Dense-only")
+        _render_answer_block(
+            st.session_state.last_dense, anchor_prefix="dense-chunk-"
+        )
+elif st.session_state.get("last_mode") == "single":
+    st.divider()
+    _render_answer_block(st.session_state.last_answer)

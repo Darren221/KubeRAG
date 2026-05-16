@@ -96,3 +96,15 @@ def test_provenance_omits_dense_when_sparse_only() -> None:
 def test_provenance_uses_dot_separator() -> None:
     line = format_chunk_provenance(_make_hit())
     assert " · " in line
+
+
+def test_linkify_with_custom_anchor_prefix() -> None:
+    out = linkify_citations("Cite [1] and [2].", anchor_prefix="hybrid-chunk-")
+    assert 'href="#hybrid-chunk-1"' in out
+    assert 'href="#hybrid-chunk-2"' in out
+    assert "#chunk-1" not in out
+
+
+def test_default_anchor_prefix_is_chunk_dash() -> None:
+    out = linkify_citations("Cite [1].")
+    assert 'href="#chunk-1"' in out

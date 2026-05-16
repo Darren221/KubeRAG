@@ -42,9 +42,12 @@ CITATION_CSS = """
 """
 
 
-def linkify_citations(text: str) -> str:
+def linkify_citations(text: str, *, anchor_prefix: str = "chunk-") -> str:
     return _MARKER_RE.sub(
-        lambda m: f'<a href="#chunk-{m.group(1)}" class="kr-citation">[{m.group(1)}]</a>',
+        lambda m: (
+            f'<a href="#{anchor_prefix}{m.group(1)}" '
+            f'class="kr-citation">[{m.group(1)}]</a>'
+        ),
         text,
     )
 
@@ -62,9 +65,14 @@ def render_styles() -> None:
     st.markdown(CITATION_CSS, unsafe_allow_html=True)
 
 
-def render_grounded_answer(answer: GroundedAnswer) -> None:
+def render_grounded_answer(
+    answer: GroundedAnswer, *, anchor_prefix: str = "chunk-"
+) -> None:
     st.subheader("Answer")
-    st.markdown(linkify_citations(answer.text), unsafe_allow_html=True)
+    st.markdown(
+        linkify_citations(answer.text, anchor_prefix=anchor_prefix),
+        unsafe_allow_html=True,
+    )
 
 
 def render_insufficient_answer(answer: InsufficientAnswer) -> None:
@@ -79,7 +87,10 @@ def render_insufficient_answer(answer: InsufficientAnswer) -> None:
 
 
 def render_chunks_panel(
-    chunks: list[FusedHit], citations: list[VerifiedCitation] | None = None
+    chunks: list[FusedHit],
+    citations: list[VerifiedCitation] | None = None,
+    *,
+    anchor_prefix: str = "chunk-",
 ) -> None:
     if not chunks:
         st.caption("No chunks retrieved.")
@@ -94,7 +105,7 @@ def render_chunks_panel(
         marker = index + 1
         cite = citations_by_marker.get(marker)
         st.markdown(
-            f'<div id="chunk-{marker}" class="kr-chunk-anchor"></div>',
+            f'<div id="{anchor_prefix}{marker}" class="kr-chunk-anchor"></div>',
             unsafe_allow_html=True,
         )
         header = f"**[{marker}]** `{chunk.source}`"
