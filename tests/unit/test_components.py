@@ -1,5 +1,10 @@
-from dashboard.components import format_chunk_provenance, linkify_citations
+from dashboard.components import (
+    confidence_rows,
+    format_chunk_provenance,
+    linkify_citations,
+)
 
+from kuberag.generation.confidence import ConfidenceBreakdown
 from kuberag.retrieval.fusion import FusedHit
 
 
@@ -108,3 +113,39 @@ def test_linkify_with_custom_anchor_prefix() -> None:
 def test_default_anchor_prefix_is_chunk_dash() -> None:
     out = linkify_citations("Cite [1].")
     assert 'href="#chunk-1"' in out
+
+
+def _confidence(
+    retrieval: float = 0.9, citation: float = 0.8, completeness: float = 0.7
+) -> ConfidenceBreakdown:
+    composite = 0.4 * retrieval + 0.4 * citation + 0.2 * completeness
+    return ConfidenceBreakdown(
+        retrieval=retrieval,
+        citation=citation,
+        completeness=completeness,
+        composite=composite,
+    )
+
+
+def test_confidence_rows_returns_three_dimensions() -> None:
+    rows = confidence_rows(_confidence())
+    assert len(rows) == 3
+
+
+def test_confidence_rows_includes_correct_values() -> None:
+    rows = confidence_rows(_confidence(retrieval=0.5, citation=0.6, completeness=0.7))
+    values = {label: value for label, value in rows}
+    assert values["Retrieval"] == 0.5
+    assert values["Citation"] == 0.6
+    assert values["Completeness"] == 0.7
+
+
+def test_confidence_rows_excludes_composite() -> None:
+    rows = confidence_rows(_confidence())
+    labels = [label for label, _ in rows]
+    assert "Composite" not in labels
+
+
+def test_confidence_rows_ordering_is_retrieval_citation_completeness() -> None:
+    rows = confidence_rows(_confidence())
+    assert [label for label, _ in rows] == ["Retrieval", "Citation", "Completeness"]

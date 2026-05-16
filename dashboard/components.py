@@ -3,6 +3,7 @@ import re
 import streamlit as st
 
 from kuberag.generation.citations import VerifiedCitation
+from kuberag.generation.confidence import ConfidenceBreakdown
 from kuberag.generation.orchestrator import GroundedAnswer, InsufficientAnswer
 from kuberag.retrieval.fusion import FusedHit
 
@@ -50,6 +51,26 @@ def linkify_citations(text: str, *, anchor_prefix: str = "chunk-") -> str:
         ),
         text,
     )
+
+
+def confidence_rows(confidence: ConfidenceBreakdown) -> list[tuple[str, float]]:
+    return [
+        ("Retrieval", confidence.retrieval),
+        ("Citation", confidence.citation),
+        ("Completeness", confidence.completeness),
+    ]
+
+
+def render_confidence_breakdown(confidence: ConfidenceBreakdown) -> None:
+    st.subheader("Confidence")
+    for label, value in confidence_rows(confidence):
+        st.write(f"**{label}** — {value:.0%}")
+        st.progress(min(1.0, max(0.0, value)))
+    st.markdown(
+        f"**Composite** — `{confidence.composite:.0%}`",
+        help="Weighted sum of retrieval, citation, and completeness.",
+    )
+    st.progress(min(1.0, max(0.0, confidence.composite)))
 
 
 def format_chunk_provenance(chunk: FusedHit) -> str:

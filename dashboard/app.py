@@ -6,6 +6,7 @@ import streamlit as st
 from dashboard.api_client import KubeRAGClient
 from dashboard.components import (
     render_chunks_panel,
+    render_confidence_breakdown,
     render_grounded_answer,
     render_insufficient_answer,
     render_styles,
@@ -59,6 +60,8 @@ def _render_answer_block(
 ) -> None:
     if isinstance(answer, GroundedAnswer):
         render_grounded_answer(answer, anchor_prefix=anchor_prefix)
+        st.divider()
+        render_confidence_breakdown(answer.confidence)
         st.divider()
         render_chunks_panel(
             answer.retrieved_chunks,
