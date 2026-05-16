@@ -46,7 +46,7 @@ def test_loads_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_missing_api_key_raises(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     with pytest.raises(ValidationError):
-        Settings()
+        Settings(_env_file=None)  # type: ignore[call-arg]
 
 
 def test_rrf_weight_validated_to_unit_interval() -> None:
