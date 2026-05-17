@@ -31,7 +31,12 @@ FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PATH="/app/.venv/bin:$PATH"
+    PATH="/app/.venv/bin:$PATH" \
+    # `streamlit run` puts the script's directory on sys.path (so /app/dashboard),
+    # not /app. Adding /app here makes `from dashboard.api_client import ...`
+    # resolve the same way it does in tests and local dev (where pytest / uv
+    # add the repo root to sys.path).
+    PYTHONPATH=/app
 
 RUN groupadd -r app \
     && useradd -r -g app --no-create-home --shell /usr/sbin/nologin app \
