@@ -148,3 +148,24 @@ class Faithfulness:
                 ]
             )
         return parsed
+
+
+def recall_at_k(
+    retrieved_sources: Sequence[str],
+    expected_source_files: Sequence[str],
+    k: int,
+) -> float:
+    if k < 0:
+        raise ValueError("k must be non-negative")
+    if not expected_source_files:
+        return 1.0
+    if k == 0:
+        return 0.0
+
+    top_k = set(retrieved_sources[:k])
+    matched = sum(
+        1
+        for expected in expected_source_files
+        if any(expected in source for source in top_k)
+    )
+    return matched / len(expected_source_files)
