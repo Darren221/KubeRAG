@@ -1,0 +1,53 @@
+# Keep the build context small. Anything not needed for the runtime image
+# stays out of `docker build`'s view.
+
+# Version control
+.git/
+.gitignore
+.gitattributes
+
+# Local working notes (already gitignored, but doubly excluded from Docker)
+LEARNING/
+SPEC.md
+PLAN.md
+TASKS.md
+Context.md
+tools/
+
+# Local environments and caches
+.env
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local project data — never bake into the image
+data/
+eval/results/
+eval/.cache/
+
+# Tests (the runtime container doesn't run pytest)
+tests/
+
+# Dashboard (separate container; not bundled in the API image)
+dashboard/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
