@@ -4,6 +4,8 @@ from typing import Any, cast
 from openai import AsyncOpenAI
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
+from kuberag.generation.citations import VerifiedCitation
+
 
 class CorrectnessVerdict(BaseModel):
     model_config = ConfigDict(frozen=True)
@@ -169,3 +171,10 @@ def recall_at_k(
         if any(expected in source for source in top_k)
     )
     return matched / len(expected_source_files)
+
+
+def citation_accuracy(verifications: Sequence[VerifiedCitation]) -> float:
+    if not verifications:
+        return 1.0
+    supported = sum(1 for v in verifications if v.supported)
+    return supported / len(verifications)
