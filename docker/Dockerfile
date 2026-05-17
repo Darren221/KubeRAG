@@ -11,7 +11,11 @@ ENV UV_LINK_MODE=copy \
 # pyproject.toml changes.
 COPY --from=ghcr.io/astral-sh/uv:0.5.20 /uv /uvx /usr/local/bin/
 
-WORKDIR /build
+# Build in /app so the venv's shebangs (e.g. /app/.venv/bin/python) point at
+# the same location they'll resolve to in the runtime image. Otherwise console
+# scripts like `uvicorn` would carry shebangs referencing the builder's WORKDIR
+# and fail with "no such file or directory" at runtime.
+WORKDIR /app
 
 # Copy only what affects dependency resolution. This layer cache hits on
 # every code-only change, which is most of them.
@@ -44,8 +48,8 @@ WORKDIR /app
 
 # Copy only the populated venv + source from builder. No uv, no pip cache,
 # no build toolchain ships in the runtime image.
-COPY --from=builder --chown=app:app /build/.venv /app/.venv
-COPY --from=builder --chown=app:app /build/src /app/src
+COPY --from=builder --chown=app:app /app/.venv /app/.venv
+COPY --from=builder --chown=app:app /app/src /app/src
 
 USER app
 
