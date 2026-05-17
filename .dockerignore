@@ -35,8 +35,9 @@ eval/.cache/
 # Tests (the runtime container doesn't run pytest)
 tests/
 
-# Dashboard (separate container; not bundled in the API image)
-dashboard/
+# Dashboard intentionally NOT excluded: the dashboard image needs it.
+# The API Dockerfile only COPYs src/, so dashboard/ in the build context
+# doesn't end up in the API image either way.
 
 # IDE
 .vscode/

@@ -1,0 +1,55 @@
+# KubeRAG compose stack: API + dashboard sharing a single data volume.
+#
+# Quickstart:
+#   1. cp .env.example .env  (and add your OPENAI_API_KEY)
+#   2. docker compose up --build
+#   3. open http://localhost:8501  (dashboard)
+#      and http://localhost:8000/docs (OpenAPI)
+
+name: kuberag
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: kuberag-api:dev
+    container_name: kuberag-api
+    ports:
+      - "8000:8000"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?OPENAI_API_KEY must be set in .env}
+      KUBERAG_EMBEDDING_MODEL: ${KUBERAG_EMBEDDING_MODEL:-text-embedding-3-small}
+      KUBERAG_GENERATION_MODEL: ${KUBERAG_GENERATION_MODEL:-gpt-4o}
+      KUBERAG_JUDGE_MODEL: ${KUBERAG_JUDGE_MODEL:-gpt-4o-mini}
+      KUBERAG_CHROMA_PATH: /data/chroma
+      KUBERAG_BM25_PATH: /data/bm25.pkl
+      KUBERAG_RAW_DOCS_PATH: /data/raw
+    volumes:
+      - kuberag-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import httpx; httpx.get(\"http://localhost:8000/v1/health\", timeout=2).raise_for_status()'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  dashboard:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dashboard
+    image: kuberag-dashboard:dev
+    container_name: kuberag-dashboard
+    ports:
+      - "8501:8501"
+    environment:
+      KUBERAG_API_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  kuberag-data:
+    name: kuberag-data

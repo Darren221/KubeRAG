@@ -1,0 +1,59 @@
+# syntax=docker/dockerfile:1.7
+# Streamlit dashboard image. Same multi-stage approach as the API image but
+# with the `dashboard` extra (Streamlit + plotting deps).
+
+# ---- Stage 1: builder ----
+FROM python:3.11-slim AS builder
+
+ENV UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+COPY --from=ghcr.io/astral-sh/uv:0.5.20 /uv /uvx /usr/local/bin/
+
+# Build in /app so console-script shebangs survive the cross-stage copy.
+WORKDIR /app
+
+COPY pyproject.toml uv.lock README.md ./
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --extra dashboard --no-install-project
+
+COPY src/ ./src/
+COPY dashboard/ ./dashboard/
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --extra dashboard
+
+
+# ---- Stage 2: runtime ----
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/app/.venv/bin:$PATH"
+
+RUN groupadd -r app \
+    && useradd -r -g app --no-create-home --shell /usr/sbin/nologin app \
+    && mkdir -p /app \
+    && chown -R app:app /app
+
+WORKDIR /app
+
+COPY --from=builder --chown=app:app /app/.venv /app/.venv
+COPY --from=builder --chown=app:app /app/src /app/src
+COPY --from=builder --chown=app:app /app/dashboard /app/dashboard
+
+USER app
+
+# The dashboard talks to the API via this URL. In compose, the api service is
+# resolvable as `http://api:8000`. Override at run-time for other deployments.
+ENV KUBERAG_API_URL=http://api:8000
+
+EXPOSE 8501
+
+CMD ["streamlit", "run", "dashboard/app.py", \
+     "--server.address=0.0.0.0", \
+     "--server.port=8501", \
+     "--server.headless=true", \
+     "--browser.gatherUsageStats=false"]

@@ -1,0 +1,5 @@
+# Root-level shim. The actual compose definition lives in docker/docker-compose.yml.
+# Both files are equivalent — use whichever is in your working directory.
+
+include:
+  - path: ./docker/docker-compose.yml
