@@ -51,6 +51,10 @@ WORKDIR /app
 COPY --from=builder --chown=app:app /app/.venv /app/.venv
 COPY --from=builder --chown=app:app /app/src /app/src
 
+# Seed script — used by the compose `seed` service to populate empty indexes
+# on first boot. Adds <1 KB to the image.
+COPY --chown=app:app scripts/ /app/scripts/
+
 USER app
 
 # Default storage paths point at the mounted volume.
