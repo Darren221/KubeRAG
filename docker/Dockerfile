@@ -55,6 +55,12 @@ COPY --from=builder --chown=app:app /app/src /app/src
 # on first boot. Adds <1 KB to the image.
 COPY --chown=app:app scripts/ /app/scripts/
 
+# Golden Q&A dataset so `python -m kuberag.eval.run` works inside the container
+# without docker-cp gymnastics. The eval *results* are written to /app/eval/results
+# which can be bind-mounted from the host (see docker-compose.yml).
+RUN mkdir -p /app/eval/results && chown -R app:app /app/eval
+COPY --chown=app:app eval/golden_qa.jsonl /app/eval/golden_qa.jsonl
+
 USER app
 
 # Default storage paths point at the mounted volume.

@@ -46,6 +46,9 @@ services:
       KUBERAG_RAW_DOCS_PATH: /data/raw
     volumes:
       - kuberag-data:/data
+      # Eval reports written by `kuberag.eval.run` land on the host so they
+      # survive `docker compose down`.
+      - ../eval/results:/app/eval/results
     depends_on:
       seed:
         condition: service_completed_successfully
