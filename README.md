@@ -8,14 +8,14 @@ Hybrid-search Retrieval-Augmented Generation over the Kubernetes documentation. 
 
 Evaluated against a hand-written 50-question golden set covering four question types (lookup, multi-hop, unanswerable, ambiguous). Same eval suite, same corpus, two chunking strategies:
 
-| Metric              | Fixed chunking | Recursive chunking | Δ |
-|---------------------|---------------:|-------------------:|------:|
-| Answer correctness  | TBD            | TBD                | TBD   |
-| Faithfulness        | TBD            | TBD                | TBD   |
-| Retrieval recall@10 | TBD            | TBD                | TBD   |
-| Citation accuracy   | TBD            | TBD                | TBD   |
+| Metric              | Fixed chunking | Recursive chunking |      Δ |
+|---------------------|---------------:|-------------------:|-------:|
+| Answer correctness  |          0.724 |              0.778 | +0.054 |
+| Faithfulness        |          0.978 |              1.000 | +0.022 |
+| Retrieval recall@10 |          0.867 |              0.867 | +0.000 |
+| Citation accuracy   |          0.914 |              0.911 | −0.003 |
 
-> **TODO:** Replace TBD cells with the values from `eval/results/chunking_compare_*.md` after running `python -m kuberag.eval.compare_chunking`.
+Recursive chunking wins outright on correctness and faithfulness, ties on recall, and is statistically indistinguishable on citation accuracy. The faithfulness jump from 0.978 → 1.000 is the headline: fixed-size chunks occasionally split a claim from its surrounding qualifier, which lets the generator make subtly unsupported statements; recursive chunking respects paragraph and heading boundaries, eliminating those failures. Full per-question detail at `eval/results/chunking_compare_2026-05-27T04-09-55Z.md`.
 
 All four metrics are LLM-as-judge or set-overlap, computed by a separate, cheaper model (`gpt-4o-mini`) than the answering model (`gpt-4o`).
 
