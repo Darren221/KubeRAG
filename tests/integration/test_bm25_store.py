@@ -134,3 +134,42 @@ def test_case_insensitive_match(tmp_path: Path) -> None:
     store.add([make_chunk("a", "Kubelet is responsible for node-level operations.", index=0)])
     hits = store.query("kubelet", k=1)
     assert hits and hits[0].chunk_id == "a"
+
+
+def test_reset_empties_populated_store(tmp_path: Path) -> None:
+    store = BM25Store(tmp_path / "bm25.pkl")
+    store.add(
+        [make_chunk(f"id-{i}", f"text {i}", index=i) for i in range(5)]
+    )
+    assert store.count() == 5
+
+    store.reset()
+    assert store.count() == 0
+    assert store.query("text", k=5) == []
+
+
+def test_reset_deletes_persistence_file(tmp_path: Path) -> None:
+    bm25_path = tmp_path / "bm25.pkl"
+    store = BM25Store(bm25_path)
+    store.add([make_chunk("id-1", "hello world", index=0)])
+    assert bm25_path.exists()
+
+    store.reset()
+    assert not bm25_path.exists()
+
+
+def test_reset_then_reload_starts_empty(tmp_path: Path) -> None:
+    bm25_path = tmp_path / "bm25.pkl"
+    store = BM25Store(bm25_path)
+    store.add([make_chunk("id-1", "hello world", index=0)])
+    store.reset()
+
+    # A fresh instance should start clean — no residual state on disk.
+    reopened = BM25Store(bm25_path)
+    assert reopened.count() == 0
+
+
+def test_reset_on_empty_store_is_safe(tmp_path: Path) -> None:
+    store = BM25Store(tmp_path / "bm25.pkl")
+    store.reset()
+    assert store.count() == 0

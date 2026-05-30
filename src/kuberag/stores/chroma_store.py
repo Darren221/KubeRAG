@@ -25,9 +25,18 @@ class ChromaStore:
     def __init__(self, path: Path, collection_name: str = _DEFAULT_COLLECTION) -> None:
         self.path = Path(path)
         self.path.mkdir(parents=True, exist_ok=True)
+        self._collection_name = collection_name
         self._client = chromadb.PersistentClient(path=str(self.path))
         self._collection = self._client.get_or_create_collection(
             name=collection_name,
+            metadata={"hnsw:space": "cosine"},
+        )
+
+    def reset(self) -> None:
+        """Drop the collection and recreate it empty. Destroys all data."""
+        self._client.delete_collection(self._collection_name)
+        self._collection = self._client.get_or_create_collection(
+            name=self._collection_name,
             metadata={"hnsw:space": "cosine"},
         )
 

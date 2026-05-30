@@ -11,8 +11,10 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 import sys
 import urllib.request
+from enum import Enum
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -25,11 +27,26 @@ from kuberag.ingest.pipeline import IngestPipeline, IngestResult
 from kuberag.stores import BM25Store, ChromaStore
 
 SEED_REPO_RAW = "https://raw.githubusercontent.com/kubernetes/website"
+
+# A valid git ref: SHA, tag, or branch name. Disallows '/' and other characters
+# that could escape the URL path segment — without this, KUBERAG_SEED_REF
+# could be set to '../../attacker/repo/main' and silently swap the corpus.
+_REF_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
+
+
+def _validate_seed_ref(ref: str) -> str:
+    if not _REF_RE.match(ref):
+        raise ValueError(
+            f"invalid KUBERAG_SEED_REF: {ref!r} (must match {_REF_RE.pattern})"
+        )
+    return ref
+
+
 # Pinned for reproducibility — override with KUBERAG_SEED_REF if you need a
 # different commit, branch, or tag. Default is the k8s/website main HEAD at
 # the time the README eval numbers were verified.
-SEED_REF = os.environ.get(
-    "KUBERAG_SEED_REF", "06a3cd92aed8ca35c9fd966bb153dd46e21306e2"
+SEED_REF = _validate_seed_ref(
+    os.environ.get("KUBERAG_SEED_REF", "06a3cd92aed8ca35c9fd966bb153dd46e21306e2")
 )
 
 SEED_DOCS: list[str] = [
@@ -73,21 +90,28 @@ SEED_DOCS: list[str] = [
 ]
 
 
-def should_skip_seeding(chroma_store: ChromaStore, bm25_store: BM25Store) -> bool:
+class SeedAction(Enum):
+    SKIP = "skip"      # both stores populated and consistent — no work needed
+    SEED = "seed"      # both stores empty — first-boot seed
+    RESEED = "reseed"  # counts disagree — reset both stores and re-seed
+
+
+def decide_seed_action(
+    chroma_store: ChromaStore, bm25_store: BM25Store
+) -> SeedAction:
+    """Pure predicate: inspect the stores and decide what to do.
+
+    Any disagreement between the two counts is treated as a partial-seed
+    artifact and resolved by re-seeding from scratch. Printing/logging and
+    the actual reset are the caller's responsibility.
+    """
     chroma_count = chroma_store.count()
     bm25_count = bm25_store.count()
-    if chroma_count == 0:
-        return False
     if chroma_count != bm25_count:
-        # Partial seed from a prior crashed run. Hybrid search would silently
-        # degrade to dense-only if we left it like this — re-seed instead.
-        print(
-            f"[seed] WARNING: chroma={chroma_count} != bm25={bm25_count}; "
-            "indexes are out of sync (likely from a prior crashed seed). "
-            "Re-seeding from scratch."
-        )
-        return False
-    return True
+        return SeedAction.RESEED
+    if chroma_count == 0:
+        return SeedAction.SEED
+    return SeedAction.SKIP
 
 
 def download_doc(rel_path: str, target_dir: Path, *, ref: str = SEED_REF) -> Path:
@@ -105,7 +129,12 @@ def download_seed_corpus(
     return [download_doc(p, target_dir, ref=ref) for p in SEED_DOCS]
 
 
-def build_pipeline(settings: Settings, client: AsyncOpenAI) -> IngestPipeline:
+def build_pipeline(
+    settings: Settings,
+    client: AsyncOpenAI,
+    chroma_store: ChromaStore,
+    bm25_store: BM25Store,
+) -> IngestPipeline:
     embedder = Embedder(
         model=settings.embedding_model,
         client=client,
@@ -122,21 +151,36 @@ def build_pipeline(settings: Settings, client: AsyncOpenAI) -> IngestPipeline:
     return IngestPipeline(
         chunkers=chunkers,
         embedder=embedder,
-        chroma_store=ChromaStore(settings.chroma_path),
-        bm25_store=BM25Store(settings.bm25_path),
+        chroma_store=chroma_store,
+        bm25_store=bm25_store,
         dedupe_threshold=settings.dedupe_threshold,
     )
 
 
 async def seed() -> IngestResult | None:
-    settings = Settings()
+    settings = Settings()  # type: ignore[call-arg]
     chroma = ChromaStore(settings.chroma_path)
     bm25 = BM25Store(settings.bm25_path)
-    if should_skip_seeding(chroma, bm25):
+
+    action = decide_seed_action(chroma, bm25)
+
+    if action is SeedAction.SKIP:
         print(
             f"[seed] indexes already populated ({chroma.count()} chunks); skipping."
         )
         return None
+
+    if action is SeedAction.RESEED:
+        # Wipe both stores so the next ingest starts from a clean slate.
+        # Otherwise pipeline.run would deduplicate against the stale chroma
+        # entries and raise IngestIntegrityError when counts still diverge.
+        print(
+            f"[seed] WARNING: chroma={chroma.count()} != bm25={bm25.count()}; "
+            "indexes are out of sync (likely from a prior crashed seed). "
+            "Resetting both stores and re-seeding from scratch."
+        )
+        chroma.reset()
+        bm25.reset()
 
     print(f"[seed] downloading {len(SEED_DOCS)} k8s docs from kubernetes/website...")
     with TemporaryDirectory() as td:
@@ -145,7 +189,7 @@ async def seed() -> IngestResult | None:
         print(f"[seed] downloaded {len(paths)} files; running ingest...")
 
         client = AsyncOpenAI(api_key=settings.openai_api_key.get_secret_value())
-        pipeline = build_pipeline(settings, client)
+        pipeline = build_pipeline(settings, client, chroma, bm25)
         result = await pipeline.run(paths, chunker_name="recursive")
 
     print(

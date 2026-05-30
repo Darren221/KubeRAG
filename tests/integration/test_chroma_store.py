@@ -143,3 +143,30 @@ def test_hit_is_pydantic_model(tmp_path: Path) -> None:
     store.add([make_chunk("id-1", "hi")], [random_embedding(0)])
     hits = store.query(random_embedding(0), k=1)
     assert isinstance(hits[0], Hit)
+
+
+def test_reset_empties_populated_collection(tmp_path: Path) -> None:
+    store = ChromaStore(tmp_path / "chroma")
+    chunks = [make_chunk(f"id-{i}", f"text {i}", index=i) for i in range(5)]
+    embeddings = [random_embedding(i) for i in range(5)]
+    store.add(chunks, embeddings)
+    assert store.count() == 5
+
+    store.reset()
+    assert store.count() == 0
+    assert store.query(random_embedding(0), k=5) == []
+
+
+def test_reset_allows_subsequent_add(tmp_path: Path) -> None:
+    store = ChromaStore(tmp_path / "chroma")
+    store.add([make_chunk("id-1", "first")], [random_embedding(0)])
+    store.reset()
+
+    store.add([make_chunk("id-2", "second")], [random_embedding(1)])
+    assert store.count() == 1
+
+
+def test_reset_on_empty_store_is_safe(tmp_path: Path) -> None:
+    store = ChromaStore(tmp_path / "chroma")
+    store.reset()
+    assert store.count() == 0

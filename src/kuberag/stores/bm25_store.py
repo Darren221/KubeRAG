@@ -98,3 +98,11 @@ class BM25Store:
 
     def count(self) -> int:
         return len(self._chunks)
+
+    def reset(self) -> None:
+        """Clear all chunks and delete the persistence file. Destroys all data."""
+        self._chunks.clear()
+        self._tokens.clear()
+        self._bm25 = None
+        if self.path.exists():
+            self.path.unlink()
