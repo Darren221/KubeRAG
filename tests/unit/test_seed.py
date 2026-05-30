@@ -2,6 +2,8 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 # Add scripts/ to sys.path so we can import seed
 _REPO_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(_REPO_ROOT / "scripts"))
@@ -9,16 +11,36 @@ sys.path.insert(0, str(_REPO_ROOT / "scripts"))
 import seed  # noqa: E402
 
 
-def test_should_skip_seeding_when_chroma_populated() -> None:
-    store = MagicMock()
-    store.count.return_value = 42
-    assert seed.should_skip_seeding(store) is True
+def test_should_skip_seeding_when_both_stores_populated_and_match() -> None:
+    chroma = MagicMock()
+    chroma.count.return_value = 42
+    bm25 = MagicMock()
+    bm25.count.return_value = 42
+    assert seed.should_skip_seeding(chroma, bm25) is True
 
 
 def test_should_seed_when_chroma_empty() -> None:
-    store = MagicMock()
-    store.count.return_value = 0
-    assert seed.should_skip_seeding(store) is False
+    chroma = MagicMock()
+    chroma.count.return_value = 0
+    bm25 = MagicMock()
+    bm25.count.return_value = 0
+    assert seed.should_skip_seeding(chroma, bm25) is False
+
+
+def test_should_reseed_when_stores_disagree(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # Simulates a prior seed that crashed between chroma write and bm25 write.
+    # Without the consistency check, hybrid search would silently degrade to
+    # dense-only on next boot.
+    chroma = MagicMock()
+    chroma.count.return_value = 42
+    bm25 = MagicMock()
+    bm25.count.return_value = 0
+    assert seed.should_skip_seeding(chroma, bm25) is False
+    out = capsys.readouterr().out
+    assert "WARNING" in out
+    assert "out of sync" in out
 
 
 def test_seed_docs_list_is_substantive() -> None:

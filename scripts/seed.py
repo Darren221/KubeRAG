@@ -10,6 +10,7 @@ dataset, fetched directly from the kubernetes/website GitHub raw URLs.
 from __future__ import annotations
 
 import asyncio
+import os
 import sys
 import urllib.request
 from pathlib import Path
@@ -23,9 +24,13 @@ from kuberag.ingest.embedder import Embedder, EmbeddingCache
 from kuberag.ingest.pipeline import IngestPipeline, IngestResult
 from kuberag.stores import BM25Store, ChromaStore
 
-# Pin to a specific commit for reproducibility. Update by setting SEED_COMMIT in env.
 SEED_REPO_RAW = "https://raw.githubusercontent.com/kubernetes/website"
-SEED_REF = "main"
+# Pinned for reproducibility — override with KUBERAG_SEED_REF if you need a
+# different commit, branch, or tag. Default is the k8s/website main HEAD at
+# the time the README eval numbers were verified.
+SEED_REF = os.environ.get(
+    "KUBERAG_SEED_REF", "06a3cd92aed8ca35c9fd966bb153dd46e21306e2"
+)
 
 SEED_DOCS: list[str] = [
     # Core workload concepts
@@ -68,8 +73,21 @@ SEED_DOCS: list[str] = [
 ]
 
 
-def should_skip_seeding(chroma_store: ChromaStore) -> bool:
-    return chroma_store.count() > 0
+def should_skip_seeding(chroma_store: ChromaStore, bm25_store: BM25Store) -> bool:
+    chroma_count = chroma_store.count()
+    bm25_count = bm25_store.count()
+    if chroma_count == 0:
+        return False
+    if chroma_count != bm25_count:
+        # Partial seed from a prior crashed run. Hybrid search would silently
+        # degrade to dense-only if we left it like this — re-seed instead.
+        print(
+            f"[seed] WARNING: chroma={chroma_count} != bm25={bm25_count}; "
+            "indexes are out of sync (likely from a prior crashed seed). "
+            "Re-seeding from scratch."
+        )
+        return False
+    return True
 
 
 def download_doc(rel_path: str, target_dir: Path, *, ref: str = SEED_REF) -> Path:
@@ -111,9 +129,10 @@ def build_pipeline(settings: Settings, client: AsyncOpenAI) -> IngestPipeline:
 
 
 async def seed() -> IngestResult | None:
-    settings = Settings()  # type: ignore[call-arg]
+    settings = Settings()
     chroma = ChromaStore(settings.chroma_path)
-    if should_skip_seeding(chroma):
+    bm25 = BM25Store(settings.bm25_path)
+    if should_skip_seeding(chroma, bm25):
         print(
             f"[seed] indexes already populated ({chroma.count()} chunks); skipping."
         )
