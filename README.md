@@ -2,8 +2,6 @@
 
 Hybrid-search Retrieval-Augmented Generation over the Kubernetes documentation. Dense (ChromaDB) and sparse (BM25) retrieval are fused via Reciprocal Rank Fusion, reranked by an LLM judge, and answered with cited grounding plus per-citation verification.
 
-> **TODO:** Add a demo video link here once recorded (target: under 4 minutes).
-
 ## Results
 
 Evaluated against a hand-written 50-question golden set covering four question types (lookup, multi-hop, unanswerable, ambiguous). Same eval suite, same corpus, two chunking strategies:
@@ -221,8 +219,6 @@ tests/
 └── integration/  Filesystem / mocked-LLM tests (~10s, every commit)
 ```
 
-> **TODO:** Add screenshots — at minimum: (1) dashboard with cited answer, (2) side-by-side hybrid-vs-dense view, (3) confidence breakdown bars. Save under `docs/screenshots/` and link here.
-
 ## Configuration reference
 
 All settings come from environment variables (or a `.env` file at the repo root). Key knobs:
@@ -245,4 +241,4 @@ See `.env.example` for the complete list.
 
 ## License
 
-> **TODO:** Add a LICENSE file. MIT is a reasonable default for portfolio projects.
+MIT — see [LICENSE](LICENSE).
