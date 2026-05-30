@@ -175,6 +175,18 @@ def test_download_doc_creates_parent_dirs(tmp_path: Path) -> None:
     assert out.parent.is_dir()
 
 
+def test_download_doc_rejects_relative_path_traversal(tmp_path: Path) -> None:
+    # Raised before any network call — no urlopen mock needed.
+    with pytest.raises(ValueError, match="path traversal"):
+        seed.download_doc("../../etc/passwd", tmp_path)
+
+
+def test_download_doc_rejects_absolute_path(tmp_path: Path) -> None:
+    # Absolute paths trivially escape target_dir under pathlib semantics.
+    with pytest.raises(ValueError, match="path traversal"):
+        seed.download_doc("/etc/passwd", tmp_path)
+
+
 def test_download_doc_uses_ref_in_url(tmp_path: Path) -> None:
     captured: dict[str, str] = {}
 

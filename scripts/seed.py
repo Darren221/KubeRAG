@@ -115,8 +115,16 @@ def decide_seed_action(
 
 
 def download_doc(rel_path: str, target_dir: Path, *, ref: str = SEED_REF) -> Path:
+    # Defence-in-depth: reject any rel_path that would write outside
+    # target_dir. SEED_DOCS is a hardcoded constant today, but this guard
+    # makes the function safe if anyone later wires it to read paths from
+    # external input.
+    target_root = target_dir.resolve()
+    local_path = (target_dir / rel_path).resolve()
+    if not local_path.is_relative_to(target_root):
+        raise ValueError(f"path traversal in rel_path: {rel_path!r}")
+
     url = f"{SEED_REPO_RAW}/{ref}/{rel_path}"
-    local_path = target_dir / rel_path
     local_path.parent.mkdir(parents=True, exist_ok=True)
     with urllib.request.urlopen(url, timeout=30) as resp:
         local_path.write_bytes(resp.read())
