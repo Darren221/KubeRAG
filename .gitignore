@@ -38,13 +38,6 @@ dist/
 build/
 *.egg
 
-# Working notes — local-only, not for the public repo
-SPEC.md
-PLAN.md
-TASKS.md
-Context.md
-LEARNING/
-
-# One-off verification scripts (not part of the project)
-tools/
+# Personal scratch
+scratch/
 

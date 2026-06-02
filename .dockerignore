@@ -6,13 +6,8 @@
 .gitignore
 .gitattributes
 
-# Local working notes (already gitignored, but doubly excluded from Docker)
-LEARNING/
-SPEC.md
-PLAN.md
-TASKS.md
-Context.md
-tools/
+# Personal scratch (gitignored; also kept out of the image)
+scratch/
 
 # Local environments and caches
 .env
