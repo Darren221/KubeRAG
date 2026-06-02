@@ -38,6 +38,6 @@ dist/
 build/
 *.egg
 
-# Personal scratch
+# Scratch Space
 scratch/
 
