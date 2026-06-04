@@ -73,16 +73,16 @@ The system splits into eight layers, each independently testable:
 │              │         │                    │      │                 │
 │  Dense  ─┐   │         │   Grounded prompt  │      │  Golden set     │
 │  Sparse ─┼─► RRF ─► Rerank ─► gpt-4o ─► Cited      │  Correctness    │
-│          │   │         │      answer         │      │  Faithfulness   │
-│          │   │         │         │           │      │  Recall@k       │
-│          │   │         │         ▼           │      │  Citation acc.  │
-│          │   │         │   Citation verify   │      │                 │
-│          │   │         │   Confidence score  │      │  Chunking       │
-│          │   │         │   "I don't know"    │      │   comparator    │
+│          │   │         │      answer        │      │  Faithfulness   │
+│          │   │         │         │          │      │  Recall@k       │
+│          │   │         │         ▼          │      │  Citation acc.  │
+│          │   │         │   Citation verify  │      │                 │
+│          │   │         │   Confidence score │      │  Chunking       │
+│          │   │         │   "I don't know"   │      │   comparator    │
 └──────────┴───┘         └────────────────────┘      └─────────────────┘
        ▲
        │
-┌──────┴──────────────────────────────────────────────────────────────┐
+┌──────┴──────────────────────────────────────────────────────────────-┐
 │  Indexes (persisted to a shared volume)                              │
 │    ChromaDB (dense, cosine)    BM25 (sparse, keyword)                │
 └──────────────────────────────────────────────────────────────────────┘
